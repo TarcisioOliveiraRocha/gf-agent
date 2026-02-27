@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import annotations
 
 import os
@@ -10,18 +11,21 @@ from src.domain.ports import LLMPort
 
 
 class OpenAILLMAdapter(LLMPort):
-    def __init__(self, api_key: str | None):
+    def __init__(self, api_key: str | None = None) -> None:
+        api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not api_key:
-            api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY não configurada.")
+            raise RuntimeError(
+                "OPENAI_API_KEY não configurada. "
+                "Defina a variável de ambiente ou passe api_key no construtor."
+            )
         self.client = OpenAI(api_key=api_key)
 
     def chat(self, *, model: str, messages: List[ChatMessage]) -> str:
-        transcript = "\n".join([f"{m.role.upper()}: {m.content}" for m in messages])
+        payload = [{"role": m.role, "content": m.content} for m in messages]
 
-        resp = self.client.responses.create(
+        response = self.client.chat.completions.create(
             model=model,
-            input=transcript,
+            messages=payload,
         )
-        return resp.output_text
+
+        return response.choices[0].message.content
